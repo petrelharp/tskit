@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2019 Tskit Developers
+# Copyright (c) 2019-2020 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -463,10 +463,19 @@ class TestVariantGenerator(unittest.TestCase):
         self.assertEqual(var.num_alleles, 1)
         self.assertTrue(np.all(var.genotypes == -1))
 
-    def test_mutation_over_isolated_sample_missing(self):
-        # This is a somewhat pathological case: isolated samples are still missing
-        # *even if* there is a mutation directly over them, and this mutation will
-        # be listed in the alleles.
+    def test_empty_ts_incomplete_samples(self):
+        # https://github.com/tskit-dev/tskit/issues/776
+        tables = tskit.TableCollection(1.0)
+        tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
+        tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
+        tables.sites.add_row(0.5, "A")
+        ts = tables.tree_sequence()
+        variants = list(ts.variants(samples=[0]))
+        self.assertEqual(list(variants[0].genotypes), [-1])
+        variants = list(ts.variants(samples=[1]))
+        self.assertEqual(list(variants[0].genotypes), [-1])
+
+    def test_mutation_over_isolated_sample_not_missing(self):
         tables = tskit.TableCollection(1.0)
         tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
         tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
@@ -478,7 +487,7 @@ class TestVariantGenerator(unittest.TestCase):
         var = variants[0]
         self.assertEqual(var.alleles, ("A", "T", None))
         self.assertEqual(var.num_alleles, 2)
-        self.assertTrue(np.all(var.genotypes == -1))
+        self.assertEqual(list(var.genotypes), [1, -1])
 
 
 class TestHaplotypeGenerator(unittest.TestCase):
