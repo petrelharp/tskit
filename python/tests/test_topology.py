@@ -5740,11 +5740,14 @@ class TestSimplifyKeepInputRoots(SimplifyTestBase, ExampleTopologyMixin):
                     while u != tskit.NULL:
                         root_path.append(u)
                         u = input_tree.parent(u)
-                    input_sites = {site.position: site for site in input_tree.sites()}
+                    input_sites = {site.position: site for site in input_tree.sites()
+                            if site.position >= left and site.position < right}
                     new_sites = {
                         site.position: site for site in tree_with_roots.sites()
+                        if site.position >= left and site.position < right
                     }
-                    positions = set(input_sites.keys()) & set(new_sites.keys())
+                    self.assertEqual(set(input_sites.keys()), set(new_sites.keys()))
+                    positions = input_sites.keys()
                     for position in positions:
                         self.assertTrue(left <= position < right)
                         new_site = new_sites[position]
