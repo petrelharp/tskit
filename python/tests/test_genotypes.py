@@ -476,18 +476,21 @@ class TestVariantGenerator(unittest.TestCase):
         self.assertEqual(list(variants[0].genotypes), [-1])
 
     def test_mutation_over_isolated_sample_not_missing(self):
+        # note that the derived state can equal the ancestral state in this case
         tables = tskit.TableCollection(1.0)
+        tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
         tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
         tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
         tables.sites.add_row(0.5, "A")
         tables.mutations.add_row(0, 0, "T")
+        tables.mutations.add_row(0, 2, "A")
         ts = tables.tree_sequence()
         variants = list(ts.variants())
         self.assertEqual(len(variants), 1)
         var = variants[0]
         self.assertEqual(var.alleles, ("A", "T", None))
         self.assertEqual(var.num_alleles, 2)
-        self.assertEqual(list(var.genotypes), [1, -1])
+        self.assertEqual(list(var.genotypes), [1, -1, 0])
 
 
 class TestHaplotypeGenerator(unittest.TestCase):
