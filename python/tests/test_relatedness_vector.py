@@ -87,7 +87,6 @@ class RelatednessVector:
         for j, u in enumerate(samples):
             self.num_samples[u] = 1
             self.w[u] = self.sample_weights[j]
-            self.insert_root(u)
             # Add branch to the virtual sample
             v = num_nodes + 1 + j
             self.insert_branch(u, v)
@@ -197,13 +196,6 @@ class RelatednessVector:
             self.right_sib[c] = -1
         self.right_child[p] = c
 
-    def remove_root(self, root):
-        self.remove_branch(self.virtual_root, root)
-
-    def insert_root(self, root):
-        self.insert_branch(self.virtual_root, root)
-        self.parent[root] = -1
-
     def remove_edge(self, p, c):
         if self.verbosity > 0:
             self.print_state(f"remove {int(p), int(c)}")
@@ -215,17 +207,6 @@ class RelatednessVector:
         while u != tskit.NULL:
             self.w[u] -= self.w[c]
             u = self.parent[u]
-        # check for root changes
-        u = p
-        while u != tskit.NULL:
-            path_end = u
-            path_end_was_root = self.num_samples[u] > 0
-            self.num_samples[u] -= self.num_samples[c]
-            u = self.parent[u]
-        if path_end_was_root and (self.num_samples[path_end] == 0):
-            self.remove_root(path_end)
-        if self.num_samples[c] > 0:
-            self.insert_root(c)
 
     def insert_edge(self, p, c):
         if self.verbosity > 0:
@@ -237,17 +218,6 @@ class RelatednessVector:
         while u != tskit.NULL:
             self.w[u] += self.w[c]
             u = self.parent[u]
-        # check for root changes
-        u = p
-        while u != tskit.NULL:
-            path_end = u
-            path_end_was_root = self.num_samples[u] > 0
-            self.num_samples[u] += self.num_samples[c]
-            u = self.parent[u]
-        if self.num_samples[c] > 0:
-            self.remove_root(c)
-        if (self.num_samples[path_end] > 0) and not path_end_was_root:
-            self.insert_root(path_end)
         self.insert_branch(p, c)
 
     def get_z(self, u):
@@ -271,11 +241,6 @@ class RelatednessVector:
     def current_state(self):
         """
         Compute the current output, for debugging.
-        (TODO IS THE FOLLOWING RELEVANT? -->)
-        NOTE that the path back to the roots of disconnected trees
-        *still counts* for divergence *between* those trees!
-        (In other words, disconnected trees act as if they are
-        connected to a virtual root by a branch of length zero.)
         """
         if self.verbosity > 2:
             print("---------------")
@@ -303,7 +268,6 @@ class RelatednessVector:
         while p != tskit.NULL:
             root_path.append(p)
             p = self.parent[p]
-        # root_path.append(self.virtual_root) # TODO: do we need this?
         return root_path
 
     def push_down(self, u):
@@ -409,7 +373,6 @@ class RelatednessVector:
             while k < M and edges_right[out_order[k]] == left:
                 p = edges_parent[out_order[k]]
                 c = edges_child[out_order[k]]
-                # self.flush_edge(p, c)
                 root_path = self.get_root_path(p)
                 self.flush_root_path(root_path)
                 self.remove_edge(p, c)
