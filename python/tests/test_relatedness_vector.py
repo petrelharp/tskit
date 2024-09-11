@@ -454,8 +454,6 @@ def verify_relatedness_vector(ts, w, *, internal_checks=False, verbosity=0):
     )
     # TODO: Also we need to center the result.
     R1 -= np.mean(R1)
-    # TODO: remove factor of 2 when #1623 goes in
-    R1 *= 2
     Sigma = relatedness_matrix(ts)
     R2 = Sigma.dot(w)
     if verbosity > 0:
