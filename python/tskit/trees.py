@@ -7729,6 +7729,26 @@ class TreeSequence:
             stat = stat.reshape(stat.shape[:-1])
         return stat
 
+    def __weighted_vector_stat(
+        self,
+        ll_method,
+        W,
+        windows=None,
+        mode=None,
+        span_normalise=True,
+    ):
+        W = np.asarray(W)
+        if len(W.shape) == 1:
+            W = W.reshape(W.shape[0], 1)
+        stat = self.__run_windowed_stat(
+            windows,
+            ll_method,
+            W,
+            mode=mode,
+            span_normalise=span_normalise,
+        )
+        return stat
+
     ############################################
     # Statistics definitions
     ############################################
@@ -8277,6 +8297,46 @@ class TreeSequence:
             mode=mode,
             span_normalise=span_normalise,
             polarised=polarised,
+        )
+
+    def genetic_relatedness_vector(
+        self,
+        W,
+        windows=None,
+        mode="site",
+        span_normalise=True,
+        polarised=True,
+    ):
+        r"""
+        Computes the product of the genetic relatedness matrix and a vector of weights
+        (one per sample). The output is a (num samples) x (num weights) array whose
+        :math:`(i,j)`-th element is :math:`\sum_{b} W_{bj} C_{ib}`,
+        where :math:`W` is the matrix of weights, and :math:`C_{ab}` is the
+        :meth:`genetic_relatedness <.TreeSequence.genetic_relatedness>` between sample
+        a and sample b, and the sum is over all samples in the tree sequence.
+
+        :param numpy.ndarray W: An array of values with one row for each sample node and
+            one column for each set of weights.
+        :param list windows: An increasing list of breakpoints between the windows
+            to compute the statistic in.
+        :param str mode: A string giving the "type" of the statistic to be computed
+            (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True).
+        :return: A ndarray with shape equal to (num windows, num weights).
+        """
+        if len(W) != self.num_samples:
+            raise ValueError(
+                "First trait dimension must be equal to number of samples."
+            )
+        if not polarised:
+            raise ValueError("genetic_relatedness_vector is not available unpolarised.")
+        return self.__weighted_vector_stat(
+            self._ll_tree_sequence.genetic_relatedness_vector,
+            W,
+            windows=windows,
+            mode=mode,
+            span_normalise=span_normalise,
         )
 
     def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):

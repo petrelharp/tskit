@@ -8778,10 +8778,15 @@ tsk_matvec_calculator_run(tsk_matvec_calculator_t *self)
 
 int
 tsk_treeseq_genetic_relatedness_vector(const tsk_treeseq_t *self, tsk_size_t num_weights,
-    const double *weights, double *result, tsk_flags_t options)
+    const double *weights, tsk_size_t num_windows, const double *windows, double *result,
+    tsk_flags_t options)
 {
     int ret = 0;
     tsk_matvec_calculator_t calc;
+
+    // TODO add windows
+    tsk_bug_assert(num_windows == 0);
+    tsk_bug_assert(windows == NULL);
 
     memset(&calc, 0, sizeof(calc));
 

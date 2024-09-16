@@ -1762,7 +1762,7 @@ test_paper_ex_genetic_relatedness_vector(void)
         weights[j] = 1.0;
     }
 
-    ret = tsk_treeseq_genetic_relatedness_vector(&ts, 1, weights, result, 0);
+    ret = tsk_treeseq_genetic_relatedness_vector(&ts, 1, weights, 0, NULL, result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     tsk_treeseq_free(&ts);
