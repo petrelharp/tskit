@@ -58,10 +58,7 @@ class RelatednessVector:
         self.sample_weights = np.asarray(sample_weights, dtype=np.float64)
         # virtual root is at num_nodes; virtual samples are beyond that
         N = num_nodes + 1 + len(samples)
-        # Quintuply linked tree
         self.parent = np.full(N, -1, dtype=np.int32)
-        # Sample lists refer to sample *index*
-        self.num_samples = np.full(N, 0, dtype=np.int32)
         # Edges and indexes
         self.edges_left = edges_left
         self.edges_right = edges_right
@@ -76,17 +73,15 @@ class RelatednessVector:
         self.virtual_root = num_nodes
         self.x = np.zeros(N, dtype=np.float64)
         self.w = np.zeros(N, dtype=np.float64)
-        self.stack = np.zeros(N, dtype=np.float64)
+        self.v = np.zeros(N, dtype=np.float64)
         self.verbosity = verbosity
         self.internal_checks = internal_checks
 
         for j, u in enumerate(samples):
-            self.num_samples[u] = 1
             self.w[u] = self.sample_weights[j]
             # Add branch to the virtual sample
             v = num_nodes + 1 + j
             self.parent[v] = u
-            self.num_samples[v] = 1
 
     def print_state(self, msg=""):
         num_nodes = len(self.parent)
@@ -102,7 +97,6 @@ class RelatednessVector:
                 )
                 print(
                     f"node {j} -> {self.parent[j]}: "
-                    f"ns = {self.num_samples[j]}, "
                     f"z = ({pt} - {st})"
                     f" * ({self.position} - {self.x[j]})"
                     f" * {self.w[j]}"
@@ -111,16 +105,15 @@ class RelatednessVector:
             else:
                 sample = self.samples[j - self.virtual_root - 1]
                 print(f"node {j} -> virtual sample for : {sample}")
-            print(f"         stack: {self.stack[j]}")
+            print(f"         value: {self.v[j]}")
         roots = []
-        fmt = "{:<6}{:>8}{:>8}{:>12.6}{:>12.6}{:>12.6}"
+        fmt = "{:<6}{:>8}{:>12.6}{:>12.6}{:>12.6}"
         s = f"roots = {roots}\n"
         s += (
             fmt.format(
                 "node",
                 "parent",
-                "nsamp",
-                "stack",
+                "value",
                 "weight",
                 "z",
             )
@@ -137,8 +130,7 @@ class RelatednessVector:
                 fmt.format(
                     u_str,
                     self.parent[u],
-                    self.num_samples[u],
-                    self.stack[u],
+                    self.v[u],
                     self.w[u],
                     self.get_z(u),
                 )
@@ -156,31 +148,26 @@ class RelatednessVector:
         if self.verbosity > 0:
             self.print_state(f"remove {int(p), int(c)}")
         assert p != -1
-        self.stack[c] += self.get_z(c)
+        self.v[c] += self.get_z(c)
         self.x[c] = self.position
         self.parent[c] = -1
-        self.adjust_path_up(c, p, -1)
+        self.adjust_path_up(p, c, -1)
 
     def insert_edge(self, p, c):
         if self.verbosity > 0:
             self.print_state(f"insert {int(p), int(c)}")
         assert p != -1
         assert self.parent[c] == -1, "contradictory edges"
-        self.adjust_path_up(c, p, +1)
+        self.adjust_path_up(p, c, +1)
         self.x[c] = self.position
         self.parent[c] = p
 
-    def adjust_path_up(self, c, p, sign):
+    def adjust_path_up(self, p, c, sign):
         # sign = -1 for removing edges, +1 for adding
         while p != tskit.NULL:
-            self.stack[p] += self.get_z(p)
+            self.v[p] += self.get_z(p)
             self.x[p] = self.position
-            # check for floating point error
-            prev_stack = self.stack[c]
-            self.stack[c] -= sign * self.stack[p]
-            assert np.allclose(
-                prev_stack - self.stack[c], sign * self.stack[p]
-            ), f"FP error: {prev_stack}, {self.stack[p]}"
+            self.v[c] -= sign * self.v[p]
             self.w[p] += sign * self.w[c]
             p = self.parent[p]
 
@@ -217,7 +204,7 @@ class RelatednessVector:
             while pa != tskit.NULL:
                 if self.verbosity > 2:
                     print("edge:", pa, self.get_z(pa))
-                out[j] += self.get_z(pa) + self.stack[pa]
+                out[j] += self.get_z(pa) + self.v[pa]
                 pa = self.parent[pa]
         if self.verbosity > 2:
             print("---------------")
@@ -272,7 +259,7 @@ class RelatednessVector:
         out = np.zeros(len(self.samples))
         for out_i in range(len(self.samples)):
             i = out_i + self.virtual_root + 1
-            out[out_i] = self.stack[i]
+            out[out_i] = self.v[i]
         return out
 
 
